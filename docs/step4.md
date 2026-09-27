@@ -6,9 +6,12 @@ LangChain’s `HumanInTheLoopMiddleware` pauses agent execution before sensitive
 ```python
 from langchain.agents import create_agent
 from langchain.agents.middleware import HumanInTheLoopMiddleware
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.types import Command
 from langchain_core.tools import tool
+from dotenv import load_dotenv
+
+load_dotenv()
 
 @tool
 def search_web(query: str) -> str:
@@ -25,9 +28,11 @@ def delete_records(table: str, condition: str) -> str:
     """Delete records from the database."""
     return f"Deleted records from {table} where {condition}"
 
+model = ChatGoogleGenerativeAI(model="gemini-3.5-flash")
+
 # Create agent with HITL middleware
 hitl_agent = create_agent(
-    model="gpt-4o",
+    model=model,
     tools=[search_web, send_email, delete_records],
     middleware=[
         HumanInTheLoopMiddleware(
@@ -45,6 +50,8 @@ The `interrupt_on` dictionary is the key configuration. You specify exactly whic
 
 ## Approval Flow
 ```python
+from hitl import hitl_agent
+from langgraph.types import Command
 
 # Step 1: Invoke -- agent will pause before send_email
 config = {"configurable": {"thread_id": "session_001"}}
@@ -53,12 +60,9 @@ result = hitl_agent.invoke(
     {"messages": [{"role": "user", "content": "Send an email to team@company.com about the Q4 results"}]},
     config=config
 )
-
+print(result)
 print("=== Agent paused -- awaiting human approval ===")
-```
-The agent plans the email, prepares the tool call, and then pauses. It does not execute. The state is saved to the checkpointer.
 
-```python
 ## Step 2: Human reviews and APPROVES
 approved_result = hitl_agent.invoke(
     Command(resume={"decisions": [{"type": "approve"}]}),
@@ -73,12 +77,19 @@ Using the same thread_id, the human sends an approve command, and the agent resu
 ## Rejection Flow
 ```python
 # Alternative -- Human REJECTS
+from langgraph.types import Command
+from hitl import hitl_agent
+
+# Alternative -- Human REJECTS
 config2 = {"configurable": {"thread_id": "session_002"}}
 
-hitl_agent.invoke(
+result = hitl_agent.invoke(
     {"messages": [{"role": "user", "content": "Delete all records from the users table where active=false"}]},
     config=config2
 )
+
+print("=== Rejected! Mid response ===")
+print(result)
 
 rejected_result = hitl_agent.invoke(
     Command(resume={"decisions": [{"type": "reject", "reason": "Too risky, needs DBA review"}]}),
