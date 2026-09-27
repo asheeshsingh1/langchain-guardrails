@@ -8,9 +8,14 @@ from typing import Any
 from langchain.agents.middleware import (
     AgentMiddleware, AgentState, hook_config
 )
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.runtime import Runtime
 from langchain.agents import create_agent
 from langchain_core.tools import tool
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class ContentFilterMiddleware(AgentMiddleware):
     """
@@ -58,10 +63,11 @@ def search_tool(query: str) -> str:
     """Search for information."""
     return f"Results for: {query}"
 
+model = ChatGoogleGenerativeAI(model="gemini-3.5-flash")
 
 # Create agent with content filter
 filtered_agent = create_agent(
-    model="gpt-4o",
+    model=model,
     tools=[search_tool],
     middleware=[
         ContentFilterMiddleware(
