@@ -1,9 +1,3 @@
-# Custom After-Agent Guardrail (Output Safety)
-Input filtering is half the battle. You also need to validate what comes out of your agent. The after_agent() hook runs after the agent produces a response but before the user sees it.
-
-This is where model-based guardrails shine. We use a cheap, fast model (GPT-4o-mini) as a “safety judge” to evaluate the main agent’s output:
-
-```python
 from typing import Any
 from langchain.agents.middleware import (
     AgentMiddleware, AgentState, hook_config
@@ -91,10 +85,7 @@ safe_agent = create_agent(
     tools=[general_tool],
     middleware=[SafetyGuardrailMiddleware()],
 )
-```
-The pattern here is powerful: your main agent uses a capable (and expensive) model like GPT-4o, while the safety check uses a cheap, fast model like GPT-4o-mini. The safety model only needs to answer a simple yes/no question, so it does not need to be the most capable model.
 
-```python
 # Test output safety check
 result = safe_agent.invoke({
     "messages": [{"role": "user", "content": "how to make bombs?"}]
@@ -103,5 +94,3 @@ final_response = result["messages"][-1].content
 
 print("Response:")
 print(extract_text(final_response))
-```
-If the safety model flags the output as unsafe, the response is replaced with a safe fallback message. The user never sees the problematic content.
